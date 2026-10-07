@@ -67,13 +67,13 @@ const INNER_PER_ROSE = LAYERS.filter((l) => !l.outer).reduce((s, l) => s + l.n, 
 const OUTER_PER_ROSE = PETALS_PER_ROSE - INNER_PER_ROSE;
 
 // Dome the roses sit on
-const DOME_C = new THREE.Vector3(0, 0.56, 0);
-const DOME_R = 0.72;
+const DOME_C = new THREE.Vector3(0, 0.4, 0);
+const DOME_R = 0.76;
 
 function rosePlacements() {
   const out = [{ polar: 0, az: 0 }];
   for (let i = 0; i < 6; i++) out.push({ polar: 0.46, az: (i / 6) * Math.PI * 2 + 0.3 });
-  for (let i = 0; i < 10; i++) out.push({ polar: 0.98, az: (i / 10) * Math.PI * 2 });
+  for (let i = 0; i < 10; i++) out.push({ polar: 1.04, az: (i / 10) * Math.PI * 2 });
   return out.map((p) => {
     const polar = p.polar + (p.polar ? range(-0.05, 0.05) : 0);
     const az = p.az + range(-0.08, 0.08);
