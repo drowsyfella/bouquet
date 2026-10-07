@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>for Em yêu</title>
+  <meta name="theme-color" content="#FDF1F3" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;700&subset=vietnamese&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --blush: #FDF1F3;
+      --pink: #E58FA5;
+      --ink: #6B4A52;
+      --cream: #FFFBF6;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; height: 100%; overflow: hidden;
+      background: radial-gradient(ellipse at 50% 35%, #FFFFFF 0%, var(--blush) 75%);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overscroll-behavior: none;
+      user-select: none; -webkit-user-select: none;
+    }
+    #scene {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      display: block; touch-action: none;
+      opacity: 0; transition: opacity 1.2s ease, filter .4s ease;
+    }
+    #scene.on { opacity: 1; }
+    #scene.dim { filter: brightness(.88) blur(1px); }
+
+    /* Gate */
+    #gate {
+      position: fixed; inset: 0; z-index: 10;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+      background: var(--blush); cursor: pointer;
+      transition: opacity .6s ease;
+    }
+    #gate.gone { opacity: 0; pointer-events: none; }
+    #gate svg { width: 34px; height: 34px; animation: beat 2.4s ease-in-out infinite; }
+    #gate .t { font-size: 15px; letter-spacing: .12em; text-transform: lowercase; opacity: .8; }
+    #gate .s { font-size: 11px; opacity: .45; position: absolute; bottom: calc(28px + env(safe-area-inset-bottom)); }
+    @keyframes beat { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+
+    /* Hint */
+    #hint {
+      position: fixed; left: 0; right: 0; bottom: calc(40px + env(safe-area-inset-bottom));
+      text-align: center; font-size: 13px; letter-spacing: .1em; opacity: 0;
+      transition: opacity 1s ease; pointer-events: none;
+    }
+    #hint.on { opacity: .55; }
+
+    /* Mute */
+    #mute {
+      position: fixed; z-index: 5; top: calc(14px + env(safe-area-inset-top)); right: 14px;
+      width: 40px; height: 40px; border: 0; border-radius: 50%;
+      background: rgba(255,255,255,.6); color: var(--ink); cursor: pointer;
+      display: none; align-items: center; justify-content: center;
+    }
+    #mute.on { display: flex; }
+    #mute svg { width: 20px; height: 20px; }
+    #mute .x { display: none; }
+    #mute.muted .w { display: none; }
+    #mute.muted .x { display: inline; }
+
+    /* Card */
+    #overlay {
+      position: fixed; inset: 0; z-index: 8;
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+      visibility: hidden; opacity: 0; transition: opacity .4s ease, visibility 0s linear .4s;
+    }
+    #overlay.on { visibility: visible; opacity: 1; transition: opacity .4s ease; }
+    #card {
+      position: relative; width: 100%; max-width: 320px;
+      background: var(--cream); border-radius: 18px;
+      box-shadow: 0 18px 50px rgba(150, 90, 105, .22), 0 2px 8px rgba(150, 90, 105, .1);
+      padding: 40px 28px 32px; text-align: center;
+      transform: translateY(24px); transition: transform .4s ease;
+      font-family: "Dancing Script", cursive; color: var(--ink);
+    }
+    #overlay.on #card { transform: translateY(0); }
+    #card p { margin: 0; }
+    #card .msg { font-size: 30px; line-height: 1.25; }
+    #card .to { font-size: 34px; margin-top: 22px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    #card .to svg { width: 24px; height: 24px; }
+    #card .from { font-size: 26px; margin-top: 18px; text-align: right; }
+    #close {
+      position: absolute; top: 8px; right: 8px; width: 36px; height: 36px;
+      border: 0; background: none; color: var(--ink); opacity: .5; cursor: pointer;
+      font-size: 22px; line-height: 1;
+    }
+    #close:hover { opacity: .8; }
+    .nogl #card { transform: none; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <div id="gate" role="button" aria-label="tap to open">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#E58FA5" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.5 3 5 6.4 5c2 0 3.6 1.1 4.6 2.6l1 1.4 1-1.4C14 6.1 15.6 5 17.6 5 21 5 23.1 8.5 21.6 11.8 19.5 16.4 12 21 12 21z"/></svg>
+    <div class="t">tap to open</div>
+    <div class="s">sound on for the full effect</div>
+  </div>
+
+  <div id="hint">tap the ribbon</div>
+
+  <button id="mute" aria-label="mute">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" stroke="none"/>
+      <path class="w" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>
+      <path class="x" d="M17 9l5 6M22 9l-5 6"/>
+    </svg>
+  </button>
+
+  <div id="overlay">
+    <div id="card" role="dialog" aria-label="message">
+      <button id="close" aria-label="close">×</button>
+      <p class="msg">Get well soon and speedy recovery</p>
+      <p class="to">Em yêu <svg viewBox="0 0 24 24" aria-label="heart"><path fill="#E58FA5" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.5 3 5 6.4 5c2 0 3.6 1.1 4.6 2.6l1 1.4 1-1.4C14 6.1 15.6 5 17.6 5 21 5 23.1 8.5 21.6 11.8 19.5 16.4 12 21 12 21z"/></svg></p>
+      <p class="from">- Noah</p>
+    </div>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
