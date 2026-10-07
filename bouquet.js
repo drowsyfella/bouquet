@@ -67,7 +67,7 @@ const INNER_PER_ROSE = LAYERS.filter((l) => !l.outer).reduce((s, l) => s + l.n, 
 const OUTER_PER_ROSE = PETALS_PER_ROSE - INNER_PER_ROSE;
 
 // Dome the roses sit on
-const DOME_C = new THREE.Vector3(0, 0.4, 0);
+const DOME_C = new THREE.Vector3(0, 0.24, 0);
 const DOME_R = 0.76;
 
 function rosePlacements() {
