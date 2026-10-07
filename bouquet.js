@@ -14,21 +14,28 @@ let seed = 7;
 const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
 const range = (a, b) => a + rand() * (b - a);
 
-// ---- Rose petal: curved cupped shell, base at origin, grows along +Y ----
-function petalGeometry() {
-  const U = 6, V = 5;
+// ---- Rose petal: rounded shell, base at origin, grows along +Y ----
+// cup: how hard the sides wrap toward the rose axis
+// reflex: how far the top edge rolls back outward (outer petals)
+function petalGeometry({ cup, reflex, ruffle, width = 1 }) {
+  const U = 7, V = 6;
   const pos = [], col = [], idx = [];
   for (let i = 0; i <= U; i++) {
     const u = i / U;
-    const w = 0.5 * Math.sqrt(Math.sin(Math.PI * (0.08 + 0.82 * u)));
+    // narrow claw at the base, widest around 2/3 up, broad rounded top
+    const w = width * 0.56 * Math.sqrt(Math.max(0, 1 - Math.pow((u - 0.64) / 0.66, 2))) + 0.04 * width;
     for (let j = 0; j <= V; j++) {
       const v = (j / V) * 2 - 1;
       const x = v * w;
-      // cup: edges wrap back toward the rose axis; top lip curls outward
-      const z = -1.6 * x * x + 0.22 * u * u * u + 0.1 * Math.sin(Math.PI * u);
-      pos.push(x, u, z);
-      const shade = 0.55 + 0.45 * u;
-      col.push(shade, shade, shade);
+      const y = u * (1 - 0.16 * v * v); // round off the top edge
+      let z = -cup * x * x + 0.12 * Math.sin(Math.PI * u);
+      // lip rolls outward, corners roll more: the pointed look of open roses
+      z += reflex * Math.pow(u, 3) * (0.8 + 0.4 * v * v);
+      z += ruffle * Math.sin(v * 7.5 + u * 3) * u * u;
+      pos.push(x, y, z);
+      // darker toward the base, faint lighter rim
+      const shade = Math.min(1, 0.52 + 0.42 * Math.pow(u, 0.8) + 0.08 * Math.abs(v) * u);
+      col.push(shade, shade * 0.97, shade * 0.98);
     }
   }
   for (let i = 0; i < U; i++) {
@@ -45,15 +52,19 @@ function petalGeometry() {
   return g;
 }
 
-// Petal layers from the tight center outward
+// Petal layers from the tight bud outward. Inner layers use the cupped
+// petal and lean inward to close the bud; outer layers use the reflexed one.
 const LAYERS = [
-  { n: 3, r: 0.03, tilt: -0.18, s: 0.42, tone: 0.0 },
-  { n: 4, r: 0.07, tilt: -0.05, s: 0.55, tone: 0.2 },
-  { n: 5, r: 0.11, tilt: 0.2, s: 0.68, tone: 0.45 },
-  { n: 6, r: 0.15, tilt: 0.55, s: 0.8, tone: 0.7 },
-  { n: 6, r: 0.19, tilt: 0.95, s: 0.88, tone: 0.9 },
+  { n: 2, r: 0.02, tilt: -0.1, s: 0.34, tone: 0.0, outer: false },
+  { n: 3, r: 0.05, tilt: -0.06, s: 0.44, tone: 0.12, outer: false },
+  { n: 4, r: 0.085, tilt: 0.04, s: 0.56, tone: 0.3, outer: false },
+  { n: 5, r: 0.12, tilt: 0.28, s: 0.72, tone: 0.55, outer: true },
+  { n: 6, r: 0.16, tilt: 0.62, s: 0.82, tone: 0.75, outer: true },
+  { n: 4, r: 0.2, tilt: 0.92, s: 0.84, tone: 0.95, outer: true },
 ];
 const PETALS_PER_ROSE = LAYERS.reduce((s, l) => s + l.n, 0);
+const INNER_PER_ROSE = LAYERS.filter((l) => !l.outer).reduce((s, l) => s + l.n, 0);
+const OUTER_PER_ROSE = PETALS_PER_ROSE - INNER_PER_ROSE;
 
 // Dome the roses sit on
 const DOME_C = new THREE.Vector3(0, 0.56, 0);
@@ -62,7 +73,7 @@ const DOME_R = 0.72;
 function rosePlacements() {
   const out = [{ polar: 0, az: 0 }];
   for (let i = 0; i < 6; i++) out.push({ polar: 0.46, az: (i / 6) * Math.PI * 2 + 0.3 });
-  for (let i = 0; i < 10; i++) out.push({ polar: 0.92, az: (i / 10) * Math.PI * 2 });
+  for (let i = 0; i < 10; i++) out.push({ polar: 0.98, az: (i / 10) * Math.PI * 2 });
   return out.map((p) => {
     const polar = p.polar + (p.polar ? range(-0.05, 0.05) : 0);
     const az = p.az + range(-0.08, 0.08);
@@ -73,47 +84,53 @@ function rosePlacements() {
 
 function buildRoses() {
   const roses = rosePlacements();
-  const geo = petalGeometry();
   const mat = new THREE.MeshStandardMaterial({
-    vertexColors: true, side: THREE.DoubleSide, roughness: 0.62, metalness: 0,
+    vertexColors: true, side: THREE.DoubleSide, roughness: 0.55, metalness: 0,
   });
-  const mesh = new THREE.InstancedMesh(geo, mat, roses.length * PETALS_PER_ROSE);
+  const inner = new THREE.InstancedMesh(petalGeometry({ cup: 1.7, reflex: 0.08, ruffle: 0.008, width: 1.6 }), mat, roses.length * INNER_PER_ROSE);
+  const outer = new THREE.InstancedMesh(petalGeometry({ cup: 1.0, reflex: 0.22, ruffle: 0.015, width: 1.2 }), mat, roses.length * OUTER_PER_ROSE);
 
   const up = new THREE.Vector3(0, 1, 0);
   const tmpQ = new THREE.Quaternion();
   const m = new THREE.Matrix4();
   const c = new THREE.Color();
   const roseMats = [];
-  const petalMats = [];
+  const petals = []; // { mesh, index, local, rose }
+  const counts = new Map([[inner, 0], [outer, 0]]);
 
   roses.forEach((r, ri) => {
     // axis tilts outward along the dome normal, a bit straighter than the surface
     const axis = r.n.clone().lerp(up, 0.25).normalize();
     const pos = DOME_C.clone().addScaledVector(r.n, DOME_R - 0.08);
-    const size = range(0.33, 0.37);
+    const size = range(0.34, 0.38);
     tmpQ.setFromUnitVectors(up, axis);
     const spin = new THREE.Quaternion().setFromAxisAngle(axis, range(0, Math.PI * 2));
     const q = spin.multiply(tmpQ);
     roseMats.push(new THREE.Matrix4().compose(pos, q, new THREE.Vector3(size, size, size)));
 
-    const hue = range(-0.012, 0.012);
+    const hue = range(-0.015, 0.012);
+    const open = range(-0.08, 0.12); // some roses a bit more open than others
     let k = 0;
     LAYERS.forEach((L) => {
       for (let p = 0; p < L.n; p++, k++) {
-        const theta = k * 2.39996 + range(-0.15, 0.15); // golden-angle spiral
-        const tilt = L.tilt + range(-0.08, 0.08);
-        const s = L.s * range(0.92, 1.06);
+        const theta = k * 2.39996 + range(-0.18, 0.18); // golden-angle spiral
+        const tilt = L.tilt + range(-0.08, 0.08) + (L.outer ? open : 0);
+        const s = L.s * range(0.9, 1.08);
         const local = new THREE.Matrix4()
           .makeRotationY(theta)
           .multiply(new THREE.Matrix4().makeTranslation(0, 0, L.r))
           .multiply(new THREE.Matrix4().makeRotationX(tilt))
-          .multiply(new THREE.Matrix4().makeScale(s, s * range(0.95, 1.1), s));
-        petalMats.push(local);
+          .multiply(new THREE.Matrix4().makeRotationZ(range(-0.1, 0.1)))
+          .multiply(new THREE.Matrix4().makeScale(s * range(0.95, 1.12), s * range(0.92, 1.08), s));
+        const mesh = L.outer ? outer : inner;
+        const index = counts.get(mesh);
+        counts.set(mesh, index + 1);
+        petals.push({ mesh, index, local, rose: ri });
 
         if (L.tone < 0.5) c.copy(ROSE_DEEP).lerp(ROSE_PINK, L.tone * 2);
         else c.copy(ROSE_PINK).lerp(ROSE_LIGHT, (L.tone - 0.5) * 1.6);
-        c.offsetHSL(hue, range(-0.03, 0.03), range(-0.03, 0.03));
-        mesh.setColorAt(ri * PETALS_PER_ROSE + k, c);
+        c.offsetHSL(hue, range(-0.03, 0.03), range(-0.025, 0.025));
+        mesh.setColorAt(index, c);
       }
     });
   });
@@ -122,29 +139,30 @@ function buildRoses() {
   const bloomStart = roses.map((_, i) => i * 0.045 + range(0, 0.1));
   const sc = new THREE.Matrix4();
   function setBloom(t) {
-    for (let ri = 0; ri < roses.length; ri++) {
-      const x = THREE.MathUtils.clamp((t - bloomStart[ri]) / 0.9, 0, 1);
-      const e = 1 - Math.pow(1 - x, 3);
-      const s = 0.6 + 0.4 * e;
+    const scales = bloomStart.map((b) => {
+      const x = THREE.MathUtils.clamp((t - b) / 0.9, 0, 1);
+      return 0.6 + 0.4 * (1 - Math.pow(1 - x, 3));
+    });
+    for (const p of petals) {
+      const s = scales[p.rose];
       sc.makeScale(s, s, s);
-      for (let k = 0; k < PETALS_PER_ROSE; k++) {
-        const i = ri * PETALS_PER_ROSE + k;
-        // outer petals open slightly as the rose blooms
-        m.copy(roseMats[ri]).multiply(sc).multiply(petalMats[i]);
-        mesh.setMatrixAt(i, m);
-      }
+      m.copy(roseMats[p.rose]).multiply(sc).multiply(p.local);
+      p.mesh.setMatrixAt(p.index, m);
     }
-    mesh.instanceMatrix.needsUpdate = true;
-    mesh.computeBoundingSphere();
+    for (const mesh of [inner, outer]) {
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.computeBoundingSphere();
+    }
   }
   setBloom(0);
-  mesh.instanceColor.needsUpdate = true;
-  return { mesh, setBloom, roses };
+  inner.instanceColor.needsUpdate = true;
+  outer.instanceColor.needsUpdate = true;
+  return { meshes: [inner, outer], setBloom, roses };
 }
 
 // ---- Dark underlayer so gaps between roses read as shadow, not see-through ----
 function buildFiller() {
-  const g = new THREE.SphereGeometry(DOME_R - 0.04, 20, 10, 0, Math.PI * 2, 0, 1.35);
+  const g = new THREE.SphereGeometry(DOME_R - 0.04, 20, 10, 0, Math.PI * 2, 0, 1.15);
   const mesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: '#B8697F', roughness: 0.9 }));
   mesh.position.copy(DOME_C);
   return mesh;
@@ -163,7 +181,7 @@ function buildBabysBreath(roses) {
   for (let i = 0; i < 9; i++) puffs.push({ polar: range(1.0, 1.08), az: (i / 9) * Math.PI * 2 + 0.33, lift: 0.1 });
   for (let i = 0; i < 4; i++) puffs.push({ polar: range(0.25, 0.3), az: (i / 4) * Math.PI * 2, lift: 0.12 });
 
-  const PER = 15;
+  const PER = 12;
   const geo = new THREE.IcosahedronGeometry(0.022, 0);
   const mat = new THREE.MeshStandardMaterial({ color: '#FFFFFF', roughness: 0.8, emissive: '#FFFFFF', emissiveIntensity: 0.18 });
   const mesh = new THREE.InstancedMesh(geo, mat, puffs.length * PER);
@@ -194,7 +212,7 @@ export const wrapRadiusAt = (y) => {
 };
 
 function wrapGeometry({ phase, lobeH, flare, scale }) {
-  const A = 90, T = 26;
+  const A = 72, T = 24;
   const pos = [], idx = [];
   for (let j = 0; j <= T; j++) {
     const t = j / T;
@@ -311,7 +329,7 @@ export function createBouquet() {
   const roses = buildRoses();
   const wrap = buildWrap();
   const ribbon = buildRibbon();
-  group.add(roses.mesh, buildFiller(), buildBabysBreath(roses.roses), wrap, ribbon);
+  group.add(...roses.meshes, buildFiller(), buildBabysBreath(roses.roses), wrap, ribbon);
 
   // tilt the whole bouquet slightly toward the viewer and lift it to center
   const bouquet = new THREE.Group();
@@ -322,7 +340,7 @@ export function createBouquet() {
   return {
     object: bouquet,
     shadow,
-    tappables: [roses.mesh, ...wrap.children, ...ribbon.children],
+    tappables: [...roses.meshes, ...wrap.children, ...ribbon.children],
     setBloom: roses.setBloom,
   };
 }

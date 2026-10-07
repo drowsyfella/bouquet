@@ -72,28 +72,74 @@
       display: flex; align-items: center; justify-content: center; padding: 24px;
       visibility: hidden; opacity: 0; transition: opacity .4s ease, visibility 0s linear .4s;
     }
-    #overlay.on { visibility: visible; opacity: 1; transition: opacity .4s ease; }
+    #overlay.on { visibility: visible; opacity: 1; transition: opacity .3s ease; }
+    #overlay.on.out { opacity: 0; transition: opacity .4s ease; }
+    #stage { position: relative; width: 100%; max-width: 320px; perspective: 900px; }
+
+    /* Envelope: back, card, front pocket, flap (stacked in that order) */
+    .env {
+      position: absolute; left: 0; right: 0; bottom: -14px; height: 220px;
+      pointer-events: none; opacity: 0; border-radius: 10px;
+    }
+    .env-back { background: #EFC9D2; z-index: 1; }
+    .env-flapwrap { z-index: 4; perspective: 700px; }
+    .env-front {
+      z-index: 3; background: #F8E1E6;
+      clip-path: polygon(0 0, 50% 52%, 100% 0, 100% 100%, 0 100%);
+      box-shadow: 0 18px 40px rgba(150, 90, 105, .2);
+    }
+    .env-flap {
+      position: absolute; left: 0; right: 0; top: 0; height: 62%; border-radius: 10px 10px 0 0;
+      background: #F3D2DA; transform-origin: 50% 0;
+      clip-path: polygon(0 0, 100% 0, 50% 100%);
+    }
+    .env-flap svg { position: absolute; left: 50%; bottom: 6px; width: 26px; height: 26px; margin-left: -13px; }
+
     #card {
-      position: relative; width: 100%; max-width: 320px;
+      position: relative; z-index: 2; width: 100%;
       background: var(--cream); border-radius: 18px;
       box-shadow: 0 18px 50px rgba(150, 90, 105, .22), 0 2px 8px rgba(150, 90, 105, .1);
       padding: 40px 28px 32px; text-align: center;
-      transform: translateY(24px); transition: transform .4s ease;
       font-family: "Dancing Script", cursive; color: var(--ink);
+      transform: translateY(28px) scale(.8);
     }
-    #overlay.on #card { transform: translateY(0); }
     #card p { margin: 0; }
     #card .msg { font-size: 30px; line-height: 1.25; }
     #card .to { font-size: 34px; margin-top: 22px; display: flex; align-items: center; justify-content: center; gap: 8px; }
     #card .to svg { width: 24px; height: 24px; }
     #card .from { font-size: 26px; margin-top: 18px; text-align: right; }
+    #card p, #close { opacity: 0; }
     #close {
       position: absolute; top: 8px; right: 8px; width: 36px; height: 36px;
-      border: 0; background: none; color: var(--ink); opacity: .5; cursor: pointer;
+      border: 0; background: none; color: var(--ink); cursor: pointer;
       font-size: 22px; line-height: 1;
     }
-    #close:hover { opacity: .8; }
-    .nogl #card { transform: none; }
+
+    /* Open sequence: envelope rises in, flap opens, card slides out and settles,
+       envelope drops away, then the lines write in one by one */
+    #overlay.on .env { animation: envIn .45s ease-out both, envOut .5s ease-in 1.75s forwards; }
+    #overlay.on .env-flapwrap { animation: envIn .45s ease-out both, envOut .5s ease-in 1.75s forwards, flapZ .55s linear .45s both; }
+    #overlay.on .env-flap { animation: flapOpen .55s ease-in-out .45s both; }
+    #overlay.on .env-flap svg { animation: fadeOut .2s ease .45s both; }
+    #overlay.on #card { animation: cardOut 1.15s cubic-bezier(.3,.7,.3,1) .85s both; }
+    #overlay.on #card .msg { animation: write .7s ease 1.9s both; }
+    #overlay.on #card .to { animation: write .7s ease 2.3s both; }
+    #overlay.on #card .from { animation: write .7s ease 2.7s both; }
+    #overlay.on #close { animation: fade .4s ease 2.6s both; }
+
+    @keyframes envIn { from { opacity: 0; transform: translateY(40px) scale(.94); } to { opacity: 1; transform: none; } }
+    @keyframes envOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(90px); } }
+    @keyframes flapOpen { from { transform: rotateX(0); } to { transform: rotateX(180deg); } }
+    @keyframes flapZ { 0%, 50% { z-index: 4; } 51%, 100% { z-index: 0; } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+    @keyframes cardOut {
+      0% { transform: translateY(28px) scale(.8); z-index: 2; }
+      45% { transform: translateY(-150px) scale(.86); z-index: 2; }
+      46% { z-index: 5; }
+      100% { transform: translateY(0) scale(1); z-index: 5; }
+    }
+    @keyframes write { from { opacity: 0; transform: translateY(6px); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
+    @keyframes fade { from { opacity: 0; } to { opacity: .5; } }
   </style>
   <script type="importmap">
     {
@@ -124,11 +170,16 @@
   </button>
 
   <div id="overlay">
-    <div id="card" role="dialog" aria-label="message">
-      <button id="close" aria-label="close">×</button>
-      <p class="msg">Get well soon and speedy recovery</p>
-      <p class="to">Em yêu <svg viewBox="0 0 24 24" aria-label="heart"><path fill="#E58FA5" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.5 3 5 6.4 5c2 0 3.6 1.1 4.6 2.6l1 1.4 1-1.4C14 6.1 15.6 5 17.6 5 21 5 23.1 8.5 21.6 11.8 19.5 16.4 12 21 12 21z"/></svg></p>
-      <p class="from">- Noah</p>
+    <div id="stage">
+      <div class="env env-back"></div>
+      <div class="env env-front"></div>
+      <div class="env env-flapwrap"><div class="env-flap"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#E58FA5" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.5 3 5 6.4 5c2 0 3.6 1.1 4.6 2.6l1 1.4 1-1.4C14 6.1 15.6 5 17.6 5 21 5 23.1 8.5 21.6 11.8 19.5 16.4 12 21 12 21z"/></svg></div></div>
+      <div id="card" role="dialog" aria-label="message">
+        <button id="close" aria-label="close">×</button>
+        <p class="msg">Get well soon and speedy recovery</p>
+        <p class="to">Em yêu <svg viewBox="0 0 24 24" aria-label="heart"><path fill="#E58FA5" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.5 3 5 6.4 5c2 0 3.6 1.1 4.6 2.6l1 1.4 1-1.4C14 6.1 15.6 5 17.6 5 21 5 23.1 8.5 21.6 11.8 19.5 16.4 12 21 12 21z"/></svg></p>
+        <p class="from">- Noah</p>
+      </div>
     </div>
   </div>
 

@@ -21,9 +21,14 @@ function openCard() {
   dismissHint();
 }
 function closeCard() {
-  cardOpen = false;
-  overlay.classList.remove('on');
+  if (!cardOpen) return;
+  // fade out in place, then reset so the envelope plays again next time
+  overlay.classList.add('out');
   canvas.classList.remove('dim');
+  setTimeout(() => {
+    overlay.classList.remove('on', 'out');
+    cardOpen = false;
+  }, 400);
 }
 $('close').addEventListener('click', closeCard);
 overlay.addEventListener('click', (e) => { if (e.target === overlay) closeCard(); });
@@ -195,5 +200,5 @@ function init() {
     else { clock.getDelta(); run(); }
   });
   run();
-  window.__bouquet = { renderer, scene };
+  window.__bouquet = { renderer, scene, camera, controls };
 }
