@@ -7,7 +7,7 @@ const ROSE_DEEP = new THREE.Color('#D66A84');
 const ROSE_LIGHT = new THREE.Color('#F8C6D2');
 const PAPER = '#F7F7F5';
 const PAPER_INNER = '#FBF7F0';
-const SATIN = '#F3ECE0';
+const SATIN = '#F2A0B4'; // matches ROSE_PINK
 
 // Seeded random so the bouquet looks the same on every load
 let seed = 7;
